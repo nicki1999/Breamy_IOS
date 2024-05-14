@@ -44,8 +44,12 @@ public class LoadDataSet : DefaultObserverEventHandler
 
         if (!System.IO.File.Exists(dataSetPath))
         {
-            UnityEngine.Debug.LogError("Dataset file does not exist at the specified path: " + dataSetPath);
+            UnityEngine.Debug.LogError("#LoadDataset.cs Dataset file does NOT exist at the specified path: " + dataSetPath);
             return;
+        }
+        else
+        {
+            UnityEngine.Debug.LogError("#LoadDataset.cs Dataset file DOES exist at the specified path: " + dataSetPath);
         }
 
         var mModelTarget = VuforiaBehaviour.Instance.ObserverFactory.CreateModelTarget(dataSetPath, targetName);

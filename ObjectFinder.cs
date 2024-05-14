@@ -36,7 +36,7 @@ public class ObjectFinder : MonoBehaviour
             }
             else
             {
-                Debug.Log("Object already has 'Test' script attached: " + objectWithName.name);
+                Debug.Log("Object already has 'MyPrefabInstantiator' script attached: " + objectWithName.name);
                 CancelInvoke("FindObjectWithName");
 
             }

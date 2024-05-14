@@ -1,12 +1,10 @@
-using System;
 using UnityEngine;
-using Vuforia;
 
 public class MyPrefabInstantiator : DefaultObserverEventHandler
 {
     GameObject mMyModelObject;
+    ChangeProjectorTexture changeProjectorTexture;
 
-    
     protected override void OnTrackingFound()
     {
         Debug.Log("Target Found");
@@ -18,7 +16,6 @@ public class MyPrefabInstantiator : DefaultObserverEventHandler
         base.OnTrackingFound();
     }
 
-
     void InstantiatePrefab()
     {
         GameObject cubePrefab = Resources.Load<GameObject>("Prefabs/Cube");
@@ -27,6 +24,7 @@ public class MyPrefabInstantiator : DefaultObserverEventHandler
             Debug.Log("Target found, adding content");
             mMyModelObject = Instantiate(cubePrefab, mObserverBehaviour.transform);
             mMyModelObject.SetActive(true);
+
         }
         else
         {

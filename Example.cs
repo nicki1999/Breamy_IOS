@@ -19,28 +19,33 @@ public class Example : MonoBehaviour
 
     private IEnumerator GetTokenAndCreateCredentials()
     {
-        // Step 1: Get Token
-        yield return StartCoroutine(GetToken());
+        // Step 0: check if the dataset exists
+        DatasetExistence();
+        if (datasetExistence == false)
+        {   
+            // Step 1: Get Token
+            yield return StartCoroutine(GetToken());
 
-        // Check the result of GetToken before proceeding
-        if (tokenObtained)
-        {
-            // Step 2: Create Credentials
-            yield return StartCoroutine(CreateCredential(token));
-        }
-        Debug.Log($"assignScopes value: {assignScopes}");
-        if (assignScopes)
-        {
-            //step 3: train the model
-            yield return StartCoroutine(CreateModelTargetDataset(token));
-        }
-        if (getUUID)
-        {
-            yield return MonitorAndDownloadModelTargetDataset(token, datasetUUID);
-        }
-        else
-        {
-            Debug.LogError("One of the functions in this function did not work!");
+            // Check the result of GetToken before proceeding
+            if (tokenObtained)
+            {
+                // Step 2: Create Credentials
+                yield return StartCoroutine(CreateCredential(token));
+            }
+            Debug.Log($"assignScopes value: {assignScopes}");
+            if (assignScopes)
+            {
+                //step 3: train the model
+                yield return StartCoroutine(CreateModelTargetDataset(token));
+            }
+            if (getUUID)
+            {
+                yield return MonitorAndDownloadModelTargetDataset(token, datasetUUID);
+            }
+            else
+            {
+                Debug.LogError("One of the functions in this function did not work!");
+            }
         }
     }
 
@@ -50,13 +55,38 @@ public class Example : MonoBehaviour
     private bool getUUID = false;
     private string token = "";
     private string datasetUUID = "";
+    private bool datasetExistence = false ;
+
+    private void DatasetExistence()
+    {
+
+
+        //iOS: Application.persistentDataPath points to /var/mobile/Containers/Data/Application/<guid>/Documents.
+        //The following are the streamingAssets directory
+
+        string extractPath = Application.persistentDataPath + "/ExtractedDataset38";
+        string MTDataset = Application.persistentDataPath + "/ExtractedDataset38/MTDataset.dat";
+
+
+        if (!File.Exists(MTDataset))
+        {
+            System.Console.WriteLine("NO DATASET FILE");
+            datasetExistence = false;
+        }
+        else
+        {
+            Debug.Log("MTDataset.dat IS ALREADY THERE");
+            datasetExistence = true;
+        }
+
+    }
 
     public IEnumerator GetToken()
     {
         string tokenUrl = "https://vws.vuforia.com/oauth2/token";
         using (UnityWebRequest www = UnityWebRequest.Post(tokenUrl, "{ \"grant_type\": \"password\"," +
-            "\"username\": \"n7227009@gmail.com\"," +
-            " \"password\": \"Geraltofrivai38*\"}",
+            "\"username\": \"najafiniki689@gmail.com\"," +
+            " \"password\": \"Geraltofrivia38*\"}",
             "application/json"))
         {
             yield return www.SendWebRequest();
@@ -394,13 +424,13 @@ public class Example : MonoBehaviour
 
 
                                 string dataSetPath = "";
-#if UNITY_ANDROID && !UNITY_EDITOR
-                                             dataSetPath = "jar:file://" + Application.dataPath + "!/assets/dataset38.zip";
-#elif UNITY_IOS && !UNITY_EDITOR
-                                             dataSetPath = Application.persistentDataPath + "/dataset38.zip";
-#else
-                                dataSetPath = Application.streamingAssetsPath + "/dataset38.zip";
-#endif
+                                #if UNITY_ANDROID && !UNITY_EDITOR
+                                                                             dataSetPath = "jar:file://" + Application.dataPath + "!/assets/dataset38.zip";
+                                #elif UNITY_IOS && !UNITY_EDITOR
+                                                                             dataSetPath = Application.persistentDataPath + "/dataset38.zip";
+                                #else
+                                                                dataSetPath = Application.streamingAssetsPath + "/dataset38.zip";
+                                #endif
                                 byte[] datasetBytes = downloadRequest.downloadHandler.data;
                                 System.IO.File.WriteAllBytes(dataSetPath, datasetBytes);
 
