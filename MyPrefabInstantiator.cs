@@ -1,9 +1,12 @@
+using System.Collections;
 using UnityEngine;
 
 public class MyPrefabInstantiator : DefaultObserverEventHandler
 {
     GameObject mMyModelObject;
     ChangeProjectorTexture changeProjectorTexture;
+    private Projector projector;
+
 
     protected override void OnTrackingFound()
     {
@@ -11,14 +14,33 @@ public class MyPrefabInstantiator : DefaultObserverEventHandler
 
         // Instantiate the model prefab only if it hasn't been instantiated yet
         if (mMyModelObject == null)
-            InstantiatePrefab();
+            StartCoroutine(InstantiatePrefabWithDelay());
 
         base.OnTrackingFound();
+    }
+
+    IEnumerator InstantiatePrefabWithDelay()
+    {
+        // Wait for the next frame
+        yield return null;
+
+        InstantiatePrefab();
     }
 
     void InstantiatePrefab()
     {
         GameObject cubePrefab = Resources.Load<GameObject>("Prefabs/Cube");
+        Transform projector = cubePrefab.transform.Find("BlobLightProjector");
+        if (projector != null)
+        {
+            Projector projectorComponent = projector.GetComponent<Projector>();
+            Texture texture = projectorComponent.material.GetTexture("_ShadowTex");
+            Debug.Log("InstantiatePrefab MATERIAL IS: " + texture.name);
+        }
+        else
+        {
+            Debug.LogError("PROJECTOR IS NULL");
+        }
         if (cubePrefab != null)
         {
             Debug.Log("Target found, adding content");

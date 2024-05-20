@@ -44,6 +44,7 @@ public class ChangeProjectorTexture : MonoBehaviour
         {
             Debug.Log("I'm working!" );
             // Set the projector's material's main texture to the new texture
+            projector.material.EnableKeyword("_ShadowTex");
             projector.material.SetTexture("_ShadowTex", newTexture);
             Texture texture = projector.material.GetTexture("_ShadowTex");
             Debug.Log("ChangeProjectorTexture material is:" + texture.name);
