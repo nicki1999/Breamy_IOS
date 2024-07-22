@@ -6,9 +6,12 @@ using System.Collections;
 public class LoadDataSet : DefaultObserverEventHandler
 {
     string targetName = "Breast_Model";
-
+    GameObject loadSceneObject;
+    Canvas loadingCanvas;
     protected override void Start()
     {
+        loadSceneObject = GameObject.Find("LoadingCanvas");
+        loadingCanvas = loadSceneObject.GetComponent<Canvas>();
         UnityEngine.Debug.Log("Start method called");
 
         VuforiaApplication.Instance.OnVuforiaInitialized += OnVuforiaInitialized;
@@ -57,6 +60,7 @@ public class LoadDataSet : DefaultObserverEventHandler
         if (mModelTarget != null)
         {
             mModelTarget.OnTargetStatusChanged += OnTargetStatusChanged;
+            loadingCanvas.enabled = false;
         }
         else
         {

@@ -7,22 +7,44 @@ using System;
 using System.Text;
 using System.IO.Compression;
 using System.IO;
-
-
+using UnityEngine.SceneManagement;
+using System.Collections.Generic;
 
 public class Example : MonoBehaviour
 {
+    private bool tokenObtained = false;
+    private bool assignScopes = false;
+    private bool getUUID = false;
+    private string token = "";
+    private string datasetUUID = "";
+    private bool datasetExistence = false;
+    //private bool isLoading = false;
+    public string requestStatus = "";
+    private int loadingSceneID = 2;
+    private int currentSceneID = 1;
+    GameObject loadSceneObject;
+    Canvas loadingCanvas;
+    // This is the address to the .obj file in IOS
+    string reconstructedModel3DPath = Application.persistentDataPath + "/MyObject38.obj";
+
     void Start()
     {
+         loadSceneObject = GameObject.Find("LoadingCanvas");
+         loadingCanvas = loadSceneObject.GetComponent<Canvas>();
         StartCoroutine(GetTokenAndCreateCredentials());
     }
+
 
     private IEnumerator GetTokenAndCreateCredentials()
     {
         // Step 0: check if the dataset exists
         DatasetExistence();
         if (datasetExistence == false)
-        {   
+        {
+            //isLoading = true;
+            loadingCanvas.enabled = true;
+
+            //SceneManager.LoadScene(loadingSceneID);
             // Step 1: Get Token
             yield return StartCoroutine(GetToken());
 
@@ -46,16 +68,14 @@ public class Example : MonoBehaviour
             {
                 Debug.LogError("One of the functions in this function did not work!");
             }
+            //isLoading = false;
+            loadingCanvas.enabled = false;
+            //SceneManager.UnloadSceneAsync(loadingSceneID);
         }
     }
 
 
-    private bool tokenObtained = false;
-    private bool assignScopes = false;
-    private bool getUUID = false;
-    private string token = "";
-    private string datasetUUID = "";
-    private bool datasetExistence = false ;
+
 
     private void DatasetExistence()
     {
@@ -81,12 +101,14 @@ public class Example : MonoBehaviour
 
     }
 
+    //LOGING TO VUFORIA SERVERS
     public IEnumerator GetToken()
     {
+        requestStatus = "LOGING TO VUFORIA SERVERS";
         string tokenUrl = "https://vws.vuforia.com/oauth2/token";
         using (UnityWebRequest www = UnityWebRequest.Post(tokenUrl, "{ \"grant_type\": \"password\"," +
-            "\"username\": \"najafiniki689@gmail.com\"," +
-            " \"password\": \"Geraltofrivia38*\"}",
+            "\"username\": \"nickinajafi3@gmail.com\"," +
+            " \"password\": \"Yenneferofvengerberg388\"}",
             "application/json"))
         {
             yield return www.SendWebRequest();
@@ -100,7 +122,7 @@ public class Example : MonoBehaviour
                 Debug.Log("Response: " + www.downloadHandler.text);
                 token = ExtractAccessToken(www.downloadHandler.text);
                 tokenObtained = !string.IsNullOrEmpty(token); // Set the flag to indicate successful token acquisition
-                Debug.Log($"Form upload complete! wth token: {token}");
+                Debug.Log($"Form upload complete! with token: {token}");
             }
         }
     }
@@ -216,31 +238,132 @@ public class Example : MonoBehaviour
             Debug.LogError("JWT Token is missing.");
             yield break;
         }
-        // This is the address to the .obj file in IOS
-        string reconstructedModel3DPath = Application.persistentDataPath + "/MyObject38.obj";
-        System.Console.WriteLine($"Dataset path: {reconstructedModel3DPath}");
 
-        if (!File.Exists(reconstructedModel3DPath))
+        string[] objLines = File.ReadAllLines(reconstructedModel3DPath);
+
+
+        List<Vector3> vertices = new List<Vector3>();
+
+        foreach (string line in objLines)
         {
-            System.Console.WriteLine("MyObject38.obj file does not exist at the specified path.");
+            string[] parts = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (parts[0] == "v") // Check for vertex data
+            {
+                float x = float.Parse(parts[1]);
+                float y = float.Parse(parts[2]);
+                float z = float.Parse(parts[3]);
+                Vector3 vertex = new Vector3(x, y, z);
+                vertices.Add(vertex);
+            }
         }
-        else
+
+        if (vertices.Count > 0)
         {
-            System.Console.WriteLine("MyObject38.obj exists in the specified path");
+            // Calculate dimensions
+            float minX = vertices[0].x;
+            float maxX = vertices[0].x;
+            float minY = vertices[0].y;
+            float maxY = vertices[0].y;
+            float minZ = vertices[0].z;
+            float maxZ = vertices[0].z;
 
-            // Read the file contents
-            byte[] modelData = File.ReadAllBytes(reconstructedModel3DPath);
+            foreach (Vector3 vertex in vertices)
+            {
+                if (vertex.x < minX) minX = vertex.x;
+                if (vertex.x > maxX) maxX = vertex.x;
+                if (vertex.y < minY) minY = vertex.y;
+                if (vertex.y > maxY) maxY = vertex.y;
+                if (vertex.z < minZ) minZ = vertex.z;
+                if (vertex.z > maxZ) maxZ = vertex.z;
+            }
 
-            // Convert to Base64
-            string base64ModelData = Convert.ToBase64String(modelData);
+            float objWidth = maxX - minX;
+            float objHeight = maxY - minY;
+            //float objDepth = maxZ - minZ;
 
-            // Now you can use base64ModelData in your JSON request body or wherever else you need it
-            System.Console.WriteLine($"Base64-encoded model data: {base64ModelData}");
+            Debug.Log("Width: " + objWidth);
+            Debug.Log("Height: " + objHeight);
+            //Debug.Log("Depth: " + objDepth);
+
+            float desiredWidth = 0.53f;
+            float desiredHeight = 0.34f;
 
 
 
-            string createModelTargetURL = "https://vws.vuforia.com/modeltargets/datasets";
+            // Calculate scale factors to achieve desired dimensions
+            float scaleX = desiredWidth / objWidth;
+            float scaleY = desiredHeight / objHeight;
+            float scaleZ = 1f; // Maintain original depth scale
 
+            // Calculate diagonal distance (hypotenuse) of the bounding box
+            float objDiagonal = Mathf.Sqrt(objWidth * objWidth + objHeight * objHeight);
+
+            // Calculate depth proportional to the diagonal distance
+            float depthScaleFactor = 0.5f; // Adjust this factor based on visual preference
+            float objDepth = objDiagonal * depthScaleFactor;
+
+
+            // Calculate camera distance to fit the entire model within the frame
+            float fov = Mathf.PI / 4f; // Example: 45 degrees
+            float cameraDistance = objDiagonal / (2f * Mathf.Tan(fov / 2f));
+
+
+            // Output for debugging or visualization
+            Debug.Log("Diagonal Distance: " + objDiagonal);
+            Debug.Log("Depth: " + objDepth);
+            Debug.Log("cameraDistance: " + cameraDistance);
+
+
+
+
+
+            //Debug.Log("Scaled Width: " + scaleX);
+            //Debug.Log("Scaled Height: " + scaleY);
+            //Debug.Log("Scaled Depth: " + scaleZ);
+            // Apply scaling to vertices (in memory)
+            List<Vector3> scaledVertices = new List<Vector3>();
+            foreach (Vector3 vertex in vertices)
+            {
+                float scaledX = vertex.x * scaleX;
+                float scaledY = vertex.y * scaleY;
+                float scaledZ = vertex.z * scaleZ;
+                scaledVertices.Add(new Vector3(scaledX, scaledY, scaledZ));
+            }
+            List<string> updatedObjLines = new List<string>();
+            int vertexIndex = 0;
+            foreach (string line in objLines)
+            {
+                if (line.StartsWith("v "))
+                {
+                    Vector3 scaledVertex = scaledVertices[vertexIndex++];
+                    string updatedLine = string.Format("v {0} {1} {2}", scaledVertex.x, scaledVertex.y, scaledVertex.z);
+                    updatedObjLines.Add(updatedLine);
+                }
+                else
+                {
+                    updatedObjLines.Add(line);
+                }
+            }
+
+            //File.WriteAllLines(reconstructedModel3DPath, updatedObjLines.ToArray());
+
+            // Calculate uniform scale factor (maintain aspect ratio)
+            float uniformScale = Mathf.Min(scaleX, scaleY, scaleZ);
+
+
+            // Calculate camera position (example)
+            Vector3 cameraPosition = Camera.main.transform.position;
+            // Calculate translation to center model in FOV
+            Vector3 modelPositionInFOV = cameraPosition + Camera.main.transform.forward * cameraDistance;
+            modelPositionInFOV.y = cameraPosition.y - (objHeight / 2); // Centering the model vertically
+            Debug.Log("Transition x:" + modelPositionInFOV.x);
+            Debug.Log("Transition y:" + modelPositionInFOV.y);
+
+
+
+            // Prepare the JSON request body with uniformScale
+            // z = 1.049
             string requestBody = @"
 {
     ""name"": ""mm_frame"",
@@ -248,107 +371,26 @@ public class Example : MonoBehaviour
     ""models"": [
         {
             ""name"": ""Breast_Model"",
-            ""cadDataBlob"":""" + base64ModelData + @""",
+            ""cadDataBlob"":""" + Convert.ToBase64String(File.ReadAllBytes(reconstructedModel3DPath)) + @""",
             ""cadDataFormat"": ""OBJ"",
-
             ""views"": [
                 {
                     ""name"": ""GuideView_0000"",
-                    ""layout"": ""landscape"",
+                    ""layout"": ""portrait"",
                     ""guideViewPosition"": {
-                        ""translation"": [0.02,
-                                            0.662,
-                                            2.049],
-                        ""rotation"": [          0,
-                                                    0,
-                                                       0,
-                                                    1],
-                        ""up"": [ 
-                            0,
-                            1,
-                            0
-                            ],
-                            ""target"": [
-                            0.2523028850555429,
-                            1.039047672449232,
-                            -0.0005546708659074362
-                            ]
-                    }
-                },
-                {
-                    ""name"": ""GuideView_0001"",
-                    ""layout"": ""landscape"",
-                    ""guideViewPosition"": {
-                        ""translation"": [-5.356123842284347,
-                                            1.2814830944394011,
-                                            9.479337351684363],
-                        ""rotation"": [         -0.010612913421172264,
-                                                -0.2639337355024507,
-                                                -0.002904271253626666,
-                                                0.9644780529078505],
-                        ""up"": [
-                            0,
-                            1,
-                            0
-                            ],
-                            ""target"": [
-                            0.2523028850555429,
-                            1.039047672449232,
-                            -0.0005546708659074362
-                            ]
-                    }
-                },
-                {
-                    ""name"": ""GuideView_0002"",
-                    ""layout"": ""landscape"",
-                    ""guideViewPosition"": {
-                        ""translation"": [0.644289361241055,
-                                            1.6215400757430447,
-                                            5.950781918751998],
-                        ""rotation"": [         -0.048632234280087464,
-                                                0.03284026929590051,
-                                                0.0015998547085566619,
-                                                0.998275444437253],
-                        ""up"": [
-                            0,
-                            1,
-                            0
-                            ],
-                            ""target"": [
-                            0.2523028850555429,
-                            1.039047672449232,
-                            -0.0005546708659074362
-                            ]
-                    }
-                },
-                {
-                    ""name"": ""GuideView_0003"",
-                    ""layout"": ""landscape"",
-                    ""guideViewPosition"": {
-                        ""translation"": [          1.0525598327714882,
-                                                    2.2282305168773258,
-                                                    12.14935034724472],
-                        ""rotation"": [         -0.048632234280087464,
-                                                0.03284026929590051,
-                                                0.0015998547085566619,
-                                                0.998275444437253],
-                        ""up"": [
-                            0,
-                            1,
-                            0
-                            ],
-                            ""target"": [
-                            0.2523028850555429,
-                            1.039047672449232,
-                            -0.0005546708659074362
-                            ]
+                    ""translation"": [0, " + cameraDistance/5 + @", " + cameraDistance + @"],
+                        ""rotation"": [0, 0, 0, 1],
+                        ""up"": [0, 1, 0]
                     }
                 }
             ]
         }
     ],
-    ""uniformScale"": 1
+      ""uniformScale"": " + uniformScale.ToString("F3") + @"
+
 }";
+
+            string createModelTargetURL = "https://vws.vuforia.com/modeltargets/datasets";
             using (UnityWebRequest www = new UnityWebRequest(createModelTargetURL, "POST"))
             {
                 www.SetRequestHeader("Authorization", "Bearer" + jwtToken);
@@ -447,6 +489,7 @@ public class Example : MonoBehaviour
                                     System.Console.WriteLine("Dataset file does not exist at the specified path.");
                                     Unzip(dataSetPath, extractPath);
                                     Debug.Log($"Dataset extracted to '{extractPath}'.");
+                                    //isLoading = false;
                                 }
                                 else
                                 {
